@@ -307,6 +307,7 @@ tr:hover td { background: var(--bg-secondary); }
 'use strict';
 
 // ── State ──
+let rawEvents = [];    // All fetched events before filtering
 let allEvents = [];
 let mergedBlocks = [];
 let projectConfigs = [];
@@ -954,38 +955,18 @@ async function fetchAllData() {
       showProgress(85 + (done / total) * 10, `Fetching commits... ${done}/${total}`);
     });
 
-    // Combine all events
-    let events = [...issueEvents, ...prEvents, ...reviewEvents, ...commentEvents, ...commitEvents];
+    // Combine all events (raw, before filtering)
+    rawEvents = [...issueEvents, ...prEvents, ...reviewEvents, ...commentEvents, ...commitEvents];
 
-    // Dedup by id
-    const seen = new Set();
-    events = events.filter(e => {
-      if (seen.has(e.id)) return false;
-      seen.add(e.id);
-      return true;
-    });
-
-    // Apply repo filters
-    events = applyRepoFilters(events);
-
-    // Sort by timestamp
-    events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-    allEvents = events;
-
-    // Process into merged blocks
-    const workDuration = parseInt($('cfgDuration').value) || 30;
-    mergedBlocks = computeMergedBlocks(events, workDuration);
-
-    showProgress(100, `Done! ${events.length} events, ${mergedBlocks.length} time blocks.`);
-
-    // Cache in sessionStorage
+    // Cache raw events
     try {
-      sessionStorage.setItem('gh-tracker-events', JSON.stringify(allEvents));
-      sessionStorage.setItem('gh-tracker-blocks', JSON.stringify(mergedBlocks));
-    } catch(e) { /* sessionStorage full, ignore */ }
+      sessionStorage.setItem('gh-tracker-raw-events', JSON.stringify(rawEvents));
+    } catch(e) { /* ignore */ }
 
-    renderAll();
+    // Apply filters and compute blocks
+    reprocessData();
+
+    showProgress(100, `Done! ${allEvents.length} events, ${mergedBlocks.length} time blocks.`);
 
     setTimeout(hideProgress, 2000);
 
@@ -1015,6 +996,35 @@ function applyRepoFilters(events) {
     if (exclude.length && exclude.some(r => repo === r)) return false;
     return true;
   });
+}
+
+// ── Reprocess without re-fetching ──
+function reprocessData() {
+  if (!rawEvents.length) return;
+
+  let events = applyRepoFilters(rawEvents);
+
+  // Dedup by id
+  const seen = new Set();
+  events = events.filter(e => {
+    if (seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
+
+  events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  allEvents = events;
+
+  const workDuration = parseInt($('cfgDuration').value) || 30;
+  mergedBlocks = computeMergedBlocks(events, workDuration);
+
+  // Update cache
+  try {
+    sessionStorage.setItem('gh-tracker-events', JSON.stringify(allEvents));
+    sessionStorage.setItem('gh-tracker-blocks', JSON.stringify(mergedBlocks));
+  } catch(e) { /* ignore */ }
+
+  renderAll();
 }
 
 // ── Time Window Merging ──
@@ -1497,13 +1507,26 @@ $('cancelBtn').addEventListener('click', () => {
   $(id).addEventListener('change', saveConfig);
 });
 
+// Reprocess data (no re-fetch) when filters or duration change
+['cfgDuration','cfgInclude','cfgExclude'].forEach(id => {
+  $(id).addEventListener('change', reprocessData);
+});
+
 // ── Load cached data on startup ──
 function loadCachedData() {
   try {
+    const raw = sessionStorage.getItem('gh-tracker-raw-events');
+    if (raw) {
+      rawEvents = JSON.parse(raw);
+      reprocessData();
+      return;
+    }
+    // Fallback: load old-style cache (no raw events)
     const evts = sessionStorage.getItem('gh-tracker-events');
     const blks = sessionStorage.getItem('gh-tracker-blocks');
     if (evts && blks) {
       allEvents = JSON.parse(evts);
+      rawEvents = [...allEvents]; // best we can do
       mergedBlocks = JSON.parse(blks);
       renderAll();
     }
