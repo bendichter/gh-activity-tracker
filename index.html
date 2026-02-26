@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Activity Tracker</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@event-calendar/build@5.4.1/dist/event-calendar.min.css">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+  --purple: #bc8cff;
+  --radius: 6px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* Header */
+.header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header h1 span { color: var(--text-muted); font-weight: 400; }
+
+/* Config Panel */
+.config-panel { background: var(--bg-secondary); border-bottom: 1px solid var(--border); overflow: hidden; transition: max-height 0.3s ease; }
+.config-panel.collapsed { max-height: 0 !important; }
+.config-inner { padding: 16px 24px; }
+.config-toggle { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; font-family: var(--font); }
+.config-toggle:hover { color: var(--accent-hover); }
+.config-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.config-field input, .config-field select { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: var(--radius); font-size: 14px; font-family: var(--font); }
+.config-field input:focus, .config-field select:focus { outline: none; border-color: var(--accent); }
+.config-field input[type="number"] { width: 80px; }
+.config-field input[type="date"] { width: 150px; }
+.config-field input[type="text"] { min-width: 180px; }
+.config-field input[type="password"] { min-width: 240px; }
+
+/* Buttons */
+.btn { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-family: var(--font); transition: background 0.15s; }
+.btn:hover { background: var(--border); color: #fff; }
+.btn:active, .btn:focus { background: var(--accent); color: #fff; border-color: var(--accent); outline: none; }
+.btn-primary { background: #238636; border-color: rgba(240,246,252,0.1); color: #fff; }
+.btn-primary:hover { background: #2ea043; color: #fff; }
+.btn-primary:active, .btn-primary:focus { background: #3fb950; color: #fff; outline: none; }
+.btn-danger { color: var(--red); }
+.btn-danger:active, .btn-danger:focus { background: rgba(248,81,73,0.2); color: var(--red); border-color: var(--red); }
+.btn-sm { padding: 3px 8px; font-size: 12px; }
+
+/* Projects Section */
+.projects-section { margin-top: 8px; }
+.projects-section h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.project-list { display: flex; flex-direction: column; gap: 6px; }
+.project-row { display: flex; gap: 8px; align-items: center; background: var(--bg); padding: 6px 10px; border-radius: var(--radius); border: 1px solid var(--border); }
+.project-row input { flex: 1; }
+.project-row input.project-name { max-width: 140px; }
+.project-row input.project-repos { flex: 2; }
+.project-row input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--border); cursor: pointer; background: transparent; }
+
+/* Progress */
+.progress-container { padding: 0 24px; background: var(--bg); }
+.progress-container.active { padding: 12px 24px; }
+.progress-bar-outer { height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; display: none; }
+.progress-container.active .progress-bar-outer { display: block; }
+.progress-bar-inner { height: 100%; background: var(--accent); transition: width 0.3s; width: 0%; }
+.progress-text { font-size: 12px; color: var(--text-muted); margin-top: 6px; display: none; }
+.progress-container.active .progress-text { display: block; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 0 24px; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); padding: 10px 16px; cursor: pointer; font-size: 14px; font-family: var(--font); transition: all 0.15s; outline: none; }
+.tab-btn:hover { color: #fff; }
+.tab-btn.active { color: #fff; border-bottom-color: var(--accent); }
+.tab-btn:focus-visible { color: #fff; border-bottom-color: var(--accent); }
+.tab-content { display: none; padding: 16px 24px; }
+.tab-content.active { display: block; }
+
+/* Tables */
+.table-controls { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+.filter-input { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: var(--radius); font-size: 13px; width: 240px; font-family: var(--font); }
+.filter-input:focus { outline: none; border-color: var(--accent); }
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: var(--bg-secondary); position: sticky; top: 0; z-index: 1; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { cursor: pointer; user-select: none; font-weight: 600; color: var(--text-muted); }
+th:hover { color: var(--text); }
+th .sort-arrow { margin-left: 4px; font-size: 10px; }
+td { color: var(--text); }
+tr:hover td { background: var(--bg-secondary); }
+.type-badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.type-issue-authored { background: rgba(63,185,80,0.15); color: var(--green); }
+.type-pr-authored { background: rgba(188,140,255,0.15); color: var(--purple); }
+.type-pr-reviewed { background: rgba(88,166,255,0.15); color: var(--accent); }
+.type-comment { background: rgba(210,153,34,0.15); color: var(--orange); }
+.type-commit { background: rgba(139,148,158,0.15); color: #e6edf3; }
+.project-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.table-section-title { font-size: 15px; font-weight: 600; margin: 24px 0 10px; }
+.table-section-title:first-child { margin-top: 0; }
+
+/* Calendar */
+#calendar-container { min-height: calc(100vh - 120px); }
+#calendar-container .ec { --ec-bg-color: var(--bg); --ec-border-color: var(--border); --ec-text-color: var(--text); --ec-today-bg-color: rgba(88,166,255,0.06); --ec-highlight-color: rgba(88,166,255,0.1); --ec-active-bg-color: var(--bg-tertiary); --ec-button-bg-color: var(--bg-tertiary); --ec-button-border-color: var(--border); }
+#calendar-container .ec-toolbar button { color: var(--text); background: var(--bg-tertiary); border: 1px solid var(--border); }
+#calendar-container .ec-toolbar button:hover { background: var(--border); color: #fff; }
+#calendar-container .ec-toolbar button.ec-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Summary */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.summary-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.summary-card h3 { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.stat-value { font-weight: 600; }
+.bar-chart { margin-top: 8px; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.bar-label { width: 100px; font-size: 12px; color: var(--text-muted); text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 18px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; min-width: 2px; }
+.bar-value { width: 50px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+
+/* Popover */
+.popover-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; background: rgba(0,0,0,0.5); display: none; }
+.popover-overlay.visible { display: flex; align-items: center; justify-content: center; }
+.popover { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.popover h3 { margin-bottom: 8px; font-size: 15px; }
+.popover-close { float: right; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; }
+.popover-events { list-style: none; }
+.popover-events li { padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.popover-events li:last-child { border: none; }
+
+/* Empty State */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-state p { margin-top: 8px; font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .config-row { flex-direction: column; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .header { padding: 10px 16px; }
+  .config-inner, .tab-content { padding: 12px 16px; }
+  .tabs { padding: 0 16px; overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>GitHub Activity Tracker <span>/ Timesheet Generator</span></h1>
+  <button class="config-toggle" id="configToggleBtn">Hide Config</button>
+</div>
+
+<!-- Config Panel -->
+<div class="config-panel" id="configPanel">
+  <div class="config-inner">
+    <div class="config-row">
+      <div class="config-field">
+        <label>GitHub Username</label>
+        <input type="text" id="cfgUser" placeholder="octocat">
+      </div>
+      <div class="config-field">
+        <label>Personal Access Token</label>
+        <input type="password" id="cfgToken" placeholder="ghp_...">
+      </div>
+      <div class="config-field">
+        <label>Start Date</label>
+        <input type="date" id="cfgStart">
+      </div>
+      <div class="config-field">
+        <label>End Date</label>
+        <input type="date" id="cfgEnd">
+      </div>
+      <div class="config-field">
+        <label>Work Duration (min)</label>
+        <input type="number" id="cfgDuration" value="30" min="1" max="480">
+      </div>
+    </div>
+    <div class="config-row">
+      <div class="config-field">
+        <label>Include Repos (comma-separated, blank=all)</label>
+        <input type="text" id="cfgInclude" placeholder="owner/repo1, owner/repo2" style="min-width:300px">
+      </div>
+      <div class="config-field">
+        <label>Exclude Repos (comma-separated)</label>
+        <input type="text" id="cfgExclude" placeholder="owner/repo3" style="min-width:300px">
+      </div>
+    </div>
+    <div class="projects-section">
+      <h3>Project Definitions (group repos into projects for time tracking)</h3>
+      <div class="project-list" id="projectList"></div>
+      <button class="btn btn-sm" id="addProjectBtn" style="margin-top:6px">+ Add Project</button>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px;">
+      <button class="btn btn-primary" id="fetchBtn">Fetch Data</button>
+      <button class="btn btn-danger" id="cancelBtn" style="display:none">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-container" id="progressContainer">
+  <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+  <div class="progress-text" id="progressText"></div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="table">Table View</button>
+  <button class="tab-btn" data-tab="calendar">Calendar View</button>
+  <button class="tab-btn" data-tab="summary">Summary</button>
+</div>
+
+<!-- Table View -->
+<div class="tab-content active" id="tab-table">
+  <div class="empty-state" id="tableEmpty">
+    <p><strong>No data loaded</strong></p>
+    <p>Enter your GitHub username and token above, then click Fetch Data.</p>
+  </div>
+  <div id="tableContent" style="display:none">
+    <div class="table-section-title">Raw Events</div>
+    <div class="table-controls">
+      <input type="text" class="filter-input" id="eventsFilter" placeholder="Filter events...">
+      <span id="eventsCount" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="table-wrapper">
+      <table id="eventsTable">
+        <thead>
+          <tr>
+            <th data-col="type">Type <span class="sort-arrow"></span></th>
+            <th data-col="timestamp">Timestamp <span class="sort-arrow"></span></th>
+            <th data-col="repo">Repo <span class="sort-arrow"></span></th>
+            <th data-col="title">Title <span class="sort-arrow"></span></th>
+            <th data-col="number">Number <span class="sort-arrow"></span></th>
+            <th data-col="project">Project <span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="table-section-title" style="margin-top:32px">Merged Time Blocks</div>
+    <div class="table-controls">
+      <input type="text" class="filter-input" id="blocksFilter" placeholder="Filter blocks...">
+      <span id="blocksCount" style="font-size:12px;color:var(--text-muted)"></span>
+      <button class="btn btn-sm" id="exportCsvBtn">Export CSV (Toggl)</button>
+    </div>
+    <div class="table-wrapper">
+      <table id="blocksTable">
+        <thead>
+          <tr>
+            <th data-col="project">Project <span class="sort-arrow"></span></th>
+            <th data-col="start">Start <span class="sort-arrow"></span></th>
+            <th data-col="end">End <span class="sort-arrow"></span></th>
+            <th data-col="duration">Duration <span class="sort-arrow"></span></th>
+            <th data-col="events">Events <span class="sort-arrow"></span></th>
+            <th data-col="description">Description <span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar View -->
+<div class="tab-content" id="tab-calendar">
+  <div class="empty-state" id="calendarEmpty">
+    <p><strong>No data loaded</strong></p>
+    <p>Fetch data first to see the calendar view.</p>
+  </div>
+  <div id="calendar-container" style="display:none"></div>
+</div>
+
+<!-- Summary View -->
+<div class="tab-content" id="tab-summary">
+  <div class="empty-state" id="summaryEmpty">
+    <p><strong>No data loaded</strong></p>
+    <p>Fetch data first to see the summary.</p>
+  </div>
+  <div id="summaryContent" style="display:none"></div>
+</div>
+
+<!-- Popover -->
+<div class="popover-overlay" id="popoverOverlay">
+  <div class="popover">
+    <button class="popover-close" id="popoverClose">&times;</button>
+    <h3 id="popoverTitle"></h3>
+    <p id="popoverMeta" style="font-size:12px;color:var(--text-muted);margin-bottom:8px"></p>
+    <ul class="popover-events" id="popoverEvents"></ul>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@event-calendar/build@5.4.1/dist/event-calendar.min.js"></script>
+<script>
+'use strict';
+
+// ── State ──
+let allEvents = [];
+let mergedBlocks = [];
+let projectConfigs = [];
+let calendarInstance = null;
+let abortController = null;
+
+// ── Default colors for projects ──
+const DEFAULT_COLORS = ['#58a6ff','#3fb950','#bc8cff','#d29922','#f85149','#79c0ff','#56d364','#d2a8ff','#e3b341','#ff7b72'];
+
+// ── DOM Refs ──
+const $ = id => document.getElementById(id);
+
+// ── Config Persistence ──
+function saveConfig() {
+  const cfg = {
+    user: $('cfgUser').value,
+    start: $('cfgStart').value,
+    end: $('cfgEnd').value,
+    duration: $('cfgDuration').value,
+    include: $('cfgInclude').value,
+    exclude: $('cfgExclude').value,
+    projects: getProjectConfigs()
+  };
+  localStorage.setItem('gh-tracker-config', JSON.stringify(cfg));
+}
+
+function loadConfig() {
+  const raw = localStorage.getItem('gh-tracker-config');
+  if (!raw) return setDefaultDates();
+  try {
+    const cfg = JSON.parse(raw);
+    $('cfgUser').value = cfg.user || '';
+    $('cfgStart').value = cfg.start || '';
+    $('cfgEnd').value = cfg.end || '';
+    $('cfgDuration').value = cfg.duration || 30;
+    $('cfgInclude').value = cfg.include || '';
+    $('cfgExclude').value = cfg.exclude || '';
+    if (cfg.projects && cfg.projects.length) {
+      cfg.projects.forEach(p => addProjectRow(p.name, p.repos, p.color));
+    }
+  } catch(e) { setDefaultDates(); }
+  if (!$('cfgStart').value || !$('cfgEnd').value) setDefaultDates();
+}
+
+function setDefaultDates() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+  $('cfgEnd').value = dateStr(end);
+  $('cfgStart').value = dateStr(start);
+}
+
+function dateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+// Token: sessionStorage only
+function getToken() { return sessionStorage.getItem('gh-tracker-token') || ''; }
+function setToken(t) { if (t) sessionStorage.setItem('gh-tracker-token', t); }
+
+// ── Config Panel Toggle ──
+$('configToggleBtn').addEventListener('click', () => {
+  const panel = $('configPanel');
+  panel.classList.toggle('collapsed');
+  $('configToggleBtn').textContent = panel.classList.contains('collapsed') ? 'Show Config' : 'Hide Config';
+});
+
+// ── Tab Switching ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'calendar' && mergedBlocks.length && !calendarInstance) {
+      initCalendar();
+    }
+  });
+});
+
+// ── Project Rows ──
+function addProjectRow(name = '', repos = '', color = '') {
+  const idx = document.querySelectorAll('.project-row').length;
+  const c = color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
+  const row = document.createElement('div');
+  row.className = 'project-row';
+  row.innerHTML = `
+    <input type="color" class="project-color" value="${c}">
+    <input type="text" class="project-name" placeholder="Project name" value="${esc(name)}">
+    <input type="text" class="project-repos" placeholder="owner/repo1, owner/repo2" value="${esc(repos)}">
+    <button class="btn btn-sm btn-danger project-remove">&times;</button>
+  `;
+  row.querySelector('.project-remove').addEventListener('click', () => { row.remove(); saveConfig(); });
+  $('projectList').appendChild(row);
+}
+
+function esc(s) { return s.replace(/"/g, '&quot;'); }
+
+function getProjectConfigs() {
+  const rows = document.querySelectorAll('.project-row');
+  const configs = [];
+  rows.forEach(row => {
+    const name = row.querySelector('.project-name').value.trim();
+    const repos = row.querySelector('.project-repos').value.trim();
+    const color = row.querySelector('.project-color').value;
+    if (name) configs.push({ name, repos, color });
+  });
+  return configs;
+}
+
+function buildRepoToProject() {
+  const map = {};
+  const configs = getProjectConfigs();
+  configs.forEach(p => {
+    p.repos.split(',').map(r => r.trim().toLowerCase()).filter(Boolean).forEach(r => {
+      map[r] = { name: p.name, color: p.color };
+    });
+  });
+  return { map, configs };
+}
+
+$('addProjectBtn').addEventListener('click', () => addProjectRow());
+
+// ── GitHub GraphQL Client ──
+async function graphqlFetch(query, variables = {}, signal) {
+  const token = getToken();
+  if (!token) throw new Error('No token provided');
+  const resp = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: { 'Authorization': `bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+    signal
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`GitHub API error ${resp.status}: ${text}`);
+  }
+  const json = await resp.json();
+  if (json.errors) {
+    throw new Error('GraphQL errors: ' + json.errors.map(e => e.message).join('; '));
+  }
+  return json;
+}
+
+// ── Progress ──
+function showProgress(pct, text) {
+  const container = $('progressContainer');
+  container.classList.add('active');
+  $('progressBar').style.width = pct + '%';
+  $('progressText').textContent = text;
+}
+
+function hideProgress() {
+  $('progressContainer').classList.remove('active');
+}
+
+// ── Search Streams ──
+// Returns search query string for a stream type
+function buildSearchQuery(type, user, startDate, endDate) {
+  const range = `${startDate}..${endDate}`;
+  switch (type) {
+    case 'issues_authored': return `author:${user} is:issue created:${range}`;
+    case 'prs_authored': return `author:${user} is:pr created:${range}`;
+    case 'prs_reviewed': return `reviewed-by:${user} is:pr updated:${range}`;
+    case 'commented': return `commenter:${user} updated:${range}`;
+  }
+}
+
+// Build a single GraphQL query that batches multiple search streams via aliases
+function buildBatchSearchQuery(streams) {
+  const fragments = streams.map((s, i) => `
+    s${i}: search(query: "${s.query}", type: ISSUE, first: 100${s.cursor ? `, after: "${s.cursor}"` : ''}) {
+      issueCount
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        ... on Issue {
+          __typename
+          id
+          number
+          title
+          createdAt
+          url
+          repository { nameWithOwner }
+        }
+        ... on PullRequest {
+          __typename
+          id
+          number
+          title
+          createdAt
+          url
+          repository { nameWithOwner }
+        }
+      }
+    }
+  `);
+  return `query { ${fragments.join('\n')} rateLimit { remaining resetAt } }`;
+}
+
+// Adaptive date splitting: if a query returns 1000 results, split the date range in half
+async function fetchSearchStream(type, user, startDate, endDate, signal, onProgress) {
+  let allNodes = [];
+  const ranges = [{ start: startDate, end: endDate }];
+
+  while (ranges.length > 0) {
+    const range = ranges.shift();
+    let cursor = null;
+    let pageNodes = [];
+
+    while (true) {
+      if (signal && signal.aborted) throw new Error('Cancelled');
+      const query = buildSearchQuery(type, user, range.start, range.end);
+      const gql = buildBatchSearchQuery([{ query, cursor }]);
+      const result = await graphqlFetch(gql, {}, signal);
+
+      // Rate limit check
+      const rl = result.data.rateLimit;
+      if (rl && rl.remaining < 100) {
+        const resetTime = new Date(rl.resetAt);
+        const waitMs = Math.max(0, resetTime - Date.now()) + 1000;
+        showProgress(-1, `Rate limited. Waiting ${Math.ceil(waitMs/1000)}s...`);
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+
+      const data = result.data.s0;
+      pageNodes.push(...data.nodes);
+      onProgress(pageNodes.length, type);
+
+      if (data.pageInfo.hasNextPage) {
+        cursor = data.pageInfo.endCursor;
+      } else {
+        break;
+      }
+    }
+
+    // If we hit 1000, split the range
+    if (pageNodes.length >= 1000) {
+      const mid = midDate(range.start, range.end);
+      if (mid !== range.start && mid !== range.end) {
+        ranges.push({ start: range.start, end: mid });
+        ranges.push({ start: nextDay(mid), end: range.end });
+        continue;
+      }
+    }
+    allNodes.push(...pageNodes);
+  }
+  return allNodes;
+}
+
+function midDate(start, end) {
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end + 'T00:00:00');
+  const mid = new Date((s.getTime() + e.getTime()) / 2);
+  return dateStr(mid);
+}
+
+function nextDay(d) {
+  const dt = new Date(d + 'T00:00:00');
+  dt.setDate(dt.getDate() + 1);
+  return dateStr(dt);
+}
+
+// ── Comment Timestamps ──
+// For items the user commented on, we need to fetch their actual comment timestamps
+async function fetchCommentTimestamps(items, user, signal, onProgress, startDate, endDate) {
+  const results = [];
+  const batchSize = 10;
+  const rangeStart = new Date(startDate + 'T00:00:00').getTime();
+  const rangeEnd = new Date(endDate + 'T23:59:59').getTime();
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    if (signal && signal.aborted) throw new Error('Cancelled');
+    const batch = items.slice(i, i + batchSize);
+
+    // Build a batched query to get comments for each item
+    const fragments = batch.map((item, idx) => {
+      const [owner, name] = item.repo.split('/');
+      const nodeType = item.__typename === 'PullRequest' ? 'pullRequest' : 'issue';
+      return `
+        c${idx}: repository(owner: "${owner}", name: "${name}") {
+          ${nodeType}(number: ${item.number}) {
+            comments(first: 100) {
+              nodes {
+                author { login }
+                createdAt
+              }
+            }
+          }
+        }
+      `;
+    });
+
+    const gql = `query { ${fragments.join('\n')} rateLimit { remaining resetAt } }`;
+    const result = await graphqlFetch(gql, {}, signal);
+
+    // Rate limit check
+    const rl = result.data.rateLimit;
+    if (rl && rl.remaining < 100) {
+      const resetTime = new Date(rl.resetAt);
+      const waitMs = Math.max(0, resetTime - Date.now()) + 1000;
+      showProgress(-1, `Rate limited. Waiting ${Math.ceil(waitMs/1000)}s...`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+
+    batch.forEach((item, idx) => {
+      const data = result.data[`c${idx}`];
+      if (!data) return;
+      const nodeType = item.__typename === 'PullRequest' ? 'pullRequest' : 'issue';
+      const issueData = data[nodeType];
+      if (!issueData || !issueData.comments) return;
+
+      const userComments = issueData.comments.nodes.filter(
+        c => c.author && c.author.login.toLowerCase() === user.toLowerCase() &&
+          new Date(c.createdAt).getTime() >= rangeStart && new Date(c.createdAt).getTime() <= rangeEnd
+      );
+      userComments.forEach(c => {
+        results.push({
+          id: item.id + '-comment-' + c.createdAt,
+          type: 'comment',
+          timestamp: c.createdAt,
+          repo: item.repo,
+          title: item.title,
+          url: item.url,
+          number: item.number
+        });
+      });
+    });
+
+    onProgress(Math.min(i + batchSize, items.length), items.length);
+  }
+  return results;
+}
+
+// ── PR Review Timestamps ──
+async function fetchReviewTimestamps(items, user, signal, onProgress, startDate, endDate) {
+  const results = [];
+  const batchSize = 10;
+  const rangeStart = new Date(startDate + 'T00:00:00').getTime();
+  const rangeEnd = new Date(endDate + 'T23:59:59').getTime();
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    if (signal && signal.aborted) throw new Error('Cancelled');
+    const batch = items.slice(i, i + batchSize);
+
+    const fragments = batch.map((item, idx) => {
+      const [owner, name] = item.repo.split('/');
+      return `
+        r${idx}: repository(owner: "${owner}", name: "${name}") {
+          pullRequest(number: ${item.number}) {
+            reviews(first: 100) {
+              nodes {
+                author { login }
+                createdAt
+              }
+            }
+          }
+        }
+      `;
+    });
+
+    const gql = `query { ${fragments.join('\n')} rateLimit { remaining resetAt } }`;
+    const result = await graphqlFetch(gql, {}, signal);
+
+    const rl = result.data.rateLimit;
+    if (rl && rl.remaining < 100) {
+      const resetTime = new Date(rl.resetAt);
+      const waitMs = Math.max(0, resetTime - Date.now()) + 1000;
+      showProgress(-1, `Rate limited. Waiting ${Math.ceil(waitMs/1000)}s...`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+
+    batch.forEach((item, idx) => {
+      const data = result.data[`r${idx}`];
+      if (!data || !data.pullRequest || !data.pullRequest.reviews) return;
+
+      const userReviews = data.pullRequest.reviews.nodes.filter(
+        r => r.author && r.author.login.toLowerCase() === user.toLowerCase() &&
+          new Date(r.createdAt).getTime() >= rangeStart && new Date(r.createdAt).getTime() <= rangeEnd
+      );
+      userReviews.forEach(r => {
+        results.push({
+          id: item.id + '-review-' + r.createdAt,
+          type: 'pr_reviewed',
+          timestamp: r.createdAt,
+          repo: item.repo,
+          title: item.title,
+          url: item.url,
+          number: item.number
+        });
+      });
+    });
+
+    onProgress(Math.min(i + batchSize, items.length), items.length);
+  }
+  return results;
+}
+
+// ── Commit Events ──
+// Hybrid approach: REST search (covers most commits) + contributions API gap-fill for non-default branches
+async function fetchCommitEvents(user, startDate, endDate, signal, onProgress) {
+  const results = [];
+  const token = getToken();
+  const sinceISO = startDate + 'T00:00:00Z';
+  const untilISO = endDate + 'T23:59:59Z';
+
+  // Step 1: REST commit search (finds commits on default branches with exact timestamps)
+  let page = 1;
+  let totalCount = null;
+
+  while (true) {
+    if (signal && signal.aborted) throw new Error('Cancelled');
+
+    const url = `https://api.github.com/search/commits?q=author:${encodeURIComponent(user)}+committer-date:${startDate}..${endDate}&per_page=100&page=${page}&sort=committer-date`;
+    const resp = await fetch(url, {
+      headers: { 'Authorization': `bearer ${token}`, 'Accept': 'application/vnd.github+json' },
+      signal
+    });
+
+    if (resp.status === 403 || resp.status === 429) {
+      const resetHeader = resp.headers.get('x-ratelimit-reset');
+      const waitMs = resetHeader ? Math.max(0, (Number(resetHeader) * 1000) - Date.now()) + 1000 : 60000;
+      showProgress(-1, `Rate limited. Waiting ${Math.ceil(waitMs/1000)}s...`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Commit search error ${resp.status}: ${text}`);
+    }
+
+    const data = await resp.json();
+    if (totalCount === null) totalCount = data.total_count;
+
+    for (const item of data.items) {
+      const c = item.commit;
+      const repo = item.repository.full_name;
+      const firstLine = c.message.split('\n')[0].slice(0, 120);
+      results.push({
+        id: 'commit-' + item.sha,
+        type: 'commit',
+        timestamp: c.committer.date,
+        repo,
+        title: firstLine,
+        url: item.html_url,
+        number: item.sha.slice(0, 7)
+      });
+    }
+
+    onProgress(results.length, totalCount || results.length);
+
+    if (data.items.length < 100 || results.length >= totalCount) break;
+    page++;
+    if (page > 10) break;
+  }
+
+  // Step 2: Use contributions API to find repos with missing commits (non-default branches)
+  const gql1 = `{
+    user(login: "${user}") {
+      contributionsCollection(from: "${sinceISO}", to: "${untilISO}") {
+        commitContributionsByRepository(maxRepositories: 100) {
+          repository { nameWithOwner }
+          contributions { totalCount }
+        }
+      }
+    }
+    rateLimit { remaining resetAt }
+  }`;
+  const contribResult = await graphqlFetch(gql1, {}, signal);
+  const rl = contribResult.data.rateLimit;
+  if (rl && rl.remaining < 100) {
+    const waitMs = Math.max(0, new Date(rl.resetAt) - Date.now()) + 1000;
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+
+  const contribRepos = contribResult.data.user.contributionsCollection.commitContributionsByRepository;
+
+  // Count how many commits REST found per repo
+  const restCountByRepo = {};
+  results.forEach(r => { restCountByRepo[r.repo] = (restCountByRepo[r.repo] || 0) + 1; });
+
+  // Find repos where contributions API reports more commits than REST found
+  const missingRepos = contribRepos.filter(r => {
+    const expected = r.contributions.totalCount;
+    const found = restCountByRepo[r.repository.nameWithOwner] || 0;
+    return found < expected;
+  });
+
+  if (missingRepos.length > 0) {
+    onProgress(results.length, totalCount, `Checking ${missingRepos.length} repo(s) for non-default branch commits...`);
+
+    // For each repo with missing commits, enumerate branches and query commit history
+    const knownShas = new Set(results.map(r => r.id.replace('commit-', '')));
+
+    for (const mr of missingRepos) {
+      if (signal && signal.aborted) throw new Error('Cancelled');
+      const [owner, name] = mr.repository.nameWithOwner.split('/');
+
+      // Get all branches for this repo
+      const branchQuery = `{
+        repository(owner: "${owner}", name: "${name}") {
+          refs(refPrefix: "refs/heads/", first: 50) {
+            nodes { name target { ... on Commit { oid } } }
+          }
+        }
+        rateLimit { remaining resetAt }
+      }`;
+      const branchResult = await graphqlFetch(branchQuery, {}, signal);
+      const branches = branchResult.data.repository.refs.nodes;
+
+      // Query commit history on each branch
+      for (const branch of branches) {
+        if (signal && signal.aborted) throw new Error('Cancelled');
+        const histQuery = `{
+          repository(owner: "${owner}", name: "${name}") {
+            ref(qualifiedName: "refs/heads/${branch.name}") {
+              target {
+                ... on Commit {
+                  history(first: 100, since: "${sinceISO}", until: "${untilISO}") {
+                    nodes { oid message committedDate url author { user { login } } }
+                  }
+                }
+              }
+            }
+          }
+          rateLimit { remaining resetAt }
+        }`;
+        const histResult = await graphqlFetch(histQuery, {}, signal);
+        const rl2 = histResult.data.rateLimit;
+        if (rl2 && rl2.remaining < 100) {
+          const waitMs = Math.max(0, new Date(rl2.resetAt) - Date.now()) + 1000;
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+        const ref = histResult.data.repository.ref;
+        if (!ref || !ref.target || !ref.target.history) continue;
+
+        for (const c of ref.target.history.nodes) {
+          if (knownShas.has(c.oid)) continue;
+          if (!c.author || !c.author.user || c.author.user.login.toLowerCase() !== user.toLowerCase()) continue;
+          knownShas.add(c.oid);
+          const firstLine = c.message.split('\n')[0].slice(0, 120);
+          results.push({
+            id: 'commit-' + c.oid,
+            type: 'commit',
+            timestamp: c.committedDate,
+            repo: mr.repository.nameWithOwner,
+            title: firstLine,
+            url: c.url,
+            number: c.oid.slice(0, 7)
+          });
+        }
+      }
+    }
+  }
+
+  onProgress(results.length, results.length);
+  return results;
+}
+
+// ── Main Fetch Orchestrator ──
+async function fetchAllData() {
+  const user = $('cfgUser').value.trim();
+  const token = $('cfgToken').value.trim() || getToken();
+  const startDate = $('cfgStart').value;
+  const endDate = $('cfgEnd').value;
+
+  if (!user) return alert('Please enter a GitHub username.');
+  if (!token) return alert('Please enter a GitHub personal access token.');
+  if (!startDate || !endDate) return alert('Please set a date range.');
+
+  setToken(token);
+  saveConfig();
+
+  // Clear stale cache before fetching
+  sessionStorage.removeItem('gh-tracker-events');
+  sessionStorage.removeItem('gh-tracker-blocks');
+
+  abortController = new AbortController();
+  const signal = abortController.signal;
+  $('cancelBtn').style.display = '';
+  $('fetchBtn').disabled = true;
+
+  const counts = { issues_authored: 0, prs_authored: 0, prs_reviewed: 0, commented: 0 };
+  const totalSteps = 7; // 4 streams + comment timestamps + review timestamps + commits
+  let step = 0;
+
+  function onStreamProgress(count, type) {
+    counts[type] = count;
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const pct = ((step / totalSteps) * 100) + ((1 / totalSteps) * 50);
+    showProgress(Math.min(pct, 95), `Fetching ${type.replace('_', ' ')}... (${total} items found)`);
+  }
+
+  try {
+    showProgress(5, 'Fetching issues authored...');
+    step = 0;
+    const issuesRaw = await fetchSearchStream('issues_authored', user, startDate, endDate, signal, onStreamProgress);
+
+    showProgress(20, 'Fetching PRs authored...');
+    step = 1;
+    const prsRaw = await fetchSearchStream('prs_authored', user, startDate, endDate, signal, onStreamProgress);
+
+    showProgress(40, 'Fetching PRs reviewed...');
+    step = 2;
+    const reviewsRaw = await fetchSearchStream('prs_reviewed', user, startDate, endDate, signal, onStreamProgress);
+
+    showProgress(55, 'Fetching items commented on...');
+    step = 3;
+    const commentsRaw = await fetchSearchStream('commented', user, startDate, endDate, signal, onStreamProgress);
+
+    // Normalize search results
+    const issueEvents = issuesRaw.map(n => ({
+      id: n.id, type: 'issue_authored', timestamp: n.createdAt,
+      repo: n.repository.nameWithOwner, title: n.title, url: n.url, number: n.number
+    }));
+
+    const prEvents = prsRaw.map(n => ({
+      id: n.id, type: 'pr_authored', timestamp: n.createdAt,
+      repo: n.repository.nameWithOwner, title: n.title, url: n.url, number: n.number
+    }));
+
+    // For reviews and comments, we need timestamps from the secondary fetch
+    const reviewItems = reviewsRaw.map(n => ({
+      ...n, repo: n.repository.nameWithOwner
+    }));
+    const commentItems = commentsRaw.map(n => ({
+      ...n, repo: n.repository.nameWithOwner
+    }));
+
+    showProgress(65, `Fetching review timestamps (${reviewItems.length} PRs)...`);
+    step = 4;
+    const reviewEvents = await fetchReviewTimestamps(reviewItems, user, signal, (done, total) => {
+      showProgress(65 + (done / total) * 15, `Fetching review timestamps... ${done}/${total}`);
+    }, startDate, endDate);
+
+    showProgress(75, `Fetching comment timestamps (${commentItems.length} items)...`);
+    step = 5;
+    const commentEvents = await fetchCommentTimestamps(commentItems, user, signal, (done, total) => {
+      showProgress(75 + (done / total) * 10, `Fetching comment timestamps... ${done}/${total}`);
+    }, startDate, endDate);
+
+    showProgress(85, 'Fetching commits...');
+    step = 6;
+    const commitEvents = await fetchCommitEvents(user, startDate, endDate, signal, (done, total) => {
+      showProgress(85 + (done / total) * 10, `Fetching commits... ${done}/${total}`);
+    });
+
+    // Combine all events
+    let events = [...issueEvents, ...prEvents, ...reviewEvents, ...commentEvents, ...commitEvents];
+
+    // Dedup by id
+    const seen = new Set();
+    events = events.filter(e => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+
+    // Apply repo filters
+    events = applyRepoFilters(events);
+
+    // Sort by timestamp
+    events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    allEvents = events;
+
+    // Process into merged blocks
+    const workDuration = parseInt($('cfgDuration').value) || 30;
+    mergedBlocks = computeMergedBlocks(events, workDuration);
+
+    showProgress(100, `Done! ${events.length} events, ${mergedBlocks.length} time blocks.`);
+
+    // Cache in sessionStorage
+    try {
+      sessionStorage.setItem('gh-tracker-events', JSON.stringify(allEvents));
+      sessionStorage.setItem('gh-tracker-blocks', JSON.stringify(mergedBlocks));
+    } catch(e) { /* sessionStorage full, ignore */ }
+
+    renderAll();
+
+    setTimeout(hideProgress, 2000);
+
+  } catch(e) {
+    if (e.message === 'Cancelled') {
+      showProgress(0, 'Cancelled.');
+      setTimeout(hideProgress, 1500);
+    } else {
+      showProgress(0, 'Error: ' + e.message);
+      console.error(e);
+    }
+  } finally {
+    $('cancelBtn').style.display = 'none';
+    $('fetchBtn').disabled = false;
+    abortController = null;
+  }
+}
+
+// ── Repo Filtering ──
+function applyRepoFilters(events) {
+  const include = $('cfgInclude').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const exclude = $('cfgExclude').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+  return events.filter(e => {
+    const repo = e.repo.toLowerCase();
+    if (include.length && !include.some(r => repo === r)) return false;
+    if (exclude.length && exclude.some(r => repo === r)) return false;
+    return true;
+  });
+}
+
+// ── Time Window Merging ──
+function computeMergedBlocks(events, workDurationMin) {
+  const { map } = buildRepoToProject();
+  const durationMs = workDurationMin * 60 * 1000;
+
+  // Assign project to each event
+  const eventsWithProject = events.map(e => {
+    const proj = map[e.repo.toLowerCase()];
+    return { ...e, project: proj ? proj.name : e.repo, projectColor: proj ? proj.color : '#8b949e' };
+  });
+
+  // Group by project
+  const byProject = {};
+  eventsWithProject.forEach(e => {
+    if (!byProject[e.project]) byProject[e.project] = [];
+    byProject[e.project].push(e);
+  });
+
+  const blocks = [];
+
+  for (const [project, projEvents] of Object.entries(byProject)) {
+    // Create windows: [timestamp - duration, timestamp]
+    const windows = projEvents.map(e => {
+      const ts = new Date(e.timestamp).getTime();
+      return { start: ts - durationMs, end: ts, event: e };
+    }).sort((a, b) => a.start - b.start);
+
+    // Merge overlapping windows
+    let current = null;
+    for (const w of windows) {
+      if (!current) {
+        current = { start: w.start, end: w.end, events: [w.event] };
+      } else if (w.start <= current.end) {
+        current.end = Math.max(current.end, w.end);
+        current.events.push(w.event);
+      } else {
+        blocks.push(current);
+        current = { start: w.start, end: w.end, events: [w.event] };
+      }
+    }
+    if (current) blocks.push(current);
+
+    // Add project info
+    blocks.forEach(b => {
+      if (!b.project) {
+        b.project = project;
+        b.projectColor = projEvents[0].projectColor;
+      }
+    });
+  }
+
+  // Finalize
+  return blocks.map(b => ({
+    ...b,
+    durationMinutes: Math.round((b.end - b.start) / 60000),
+    description: summarizeEvents(b.events)
+  })).sort((a, b) => a.start - b.start);
+}
+
+function summarizeEvents(events) {
+  const types = {};
+  events.forEach(e => {
+    types[e.type] = (types[e.type] || 0) + 1;
+  });
+  const parts = [];
+  if (types.issue_authored) parts.push(`${types.issue_authored} issue(s) created`);
+  if (types.pr_authored) parts.push(`${types.pr_authored} PR(s) created`);
+  if (types.pr_reviewed) parts.push(`${types.pr_reviewed} PR review(s)`);
+  if (types.comment) parts.push(`${types.comment} comment(s)`);
+  if (types.commit) parts.push(`${types.commit} commit(s)`);
+
+  const repos = [...new Set(events.map(e => e.repo))];
+  const titles = events.slice(0, 3).map(e => `#${e.number} ${e.title}`);
+  if (events.length > 3) titles.push(`+${events.length - 3} more`);
+
+  return `${parts.join(', ')}. ${titles.join('; ')}`;
+}
+
+// ── Rendering ──
+function renderAll() {
+  renderEventsTable();
+  renderBlocksTable();
+  renderSummary();
+
+  // Destroy old calendar so it re-inits on tab switch
+  if (calendarInstance) {
+    try { EventCalendar.destroy(calendarInstance); } catch(e) {}
+    calendarInstance = null;
+  }
+  $('calendar-container').style.display = 'none';
+  $('calendarEmpty').style.display = '';
+
+  // If calendar tab is active, init immediately
+  if ($('tab-calendar').classList.contains('active')) {
+    initCalendar();
+  }
+
+  // Show/hide empty states
+  const hasData = allEvents.length > 0;
+  $('tableEmpty').style.display = hasData ? 'none' : '';
+  $('tableContent').style.display = hasData ? '' : 'none';
+  $('calendarEmpty').style.display = hasData ? 'none' : '';
+  $('calendar-container').style.display = hasData ? '' : 'none';
+  $('summaryEmpty').style.display = hasData ? 'none' : '';
+  $('summaryContent').style.display = hasData ? '' : 'none';
+}
+
+// ── Events Table ──
+let eventsSortCol = 'timestamp';
+let eventsSortDir = 1;
+
+function renderEventsTable() {
+  const { map } = buildRepoToProject();
+  const tbody = $('eventsTable').querySelector('tbody');
+  const filter = ($('eventsFilter').value || '').toLowerCase();
+
+  let rows = allEvents.map(e => {
+    const proj = map[e.repo.toLowerCase()];
+    return { ...e, project: proj ? proj.name : e.repo, projectColor: proj ? proj.color : '#8b949e' };
+  });
+
+  if (filter) {
+    rows = rows.filter(r =>
+      r.type.toLowerCase().includes(filter) ||
+      r.repo.toLowerCase().includes(filter) ||
+      r.title.toLowerCase().includes(filter) ||
+      r.project.toLowerCase().includes(filter) ||
+      String(r.number).includes(filter)
+    );
+  }
+
+  rows.sort((a, b) => {
+    let va = a[eventsSortCol], vb = b[eventsSortCol];
+    if (eventsSortCol === 'number') { va = Number(va); vb = Number(vb); }
+    if (va < vb) return -eventsSortDir;
+    if (va > vb) return eventsSortDir;
+    return 0;
+  });
+
+  $('eventsCount').textContent = `${rows.length} events`;
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><span class="type-badge type-${r.type.replace('_', '-')}">${formatType(r.type)}</span></td>
+      <td>${formatTimestamp(r.timestamp)}</td>
+      <td>${escHtml(r.repo)}</td>
+      <td><a href="${r.url}" target="_blank">#${r.number} ${escHtml(r.title)}</a></td>
+      <td>${r.number}</td>
+      <td><span class="project-dot" style="background:${r.projectColor}"></span>${escHtml(r.project)}</td>
+    </tr>
+  `).join('');
+
+  updateSortArrows($('eventsTable'), eventsSortCol, eventsSortDir);
+}
+
+function formatType(t) {
+  return { issue_authored: 'Issue', pr_authored: 'PR', pr_reviewed: 'Review', comment: 'Comment', commit: 'Commit' }[t] || t;
+}
+
+function formatTimestamp(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+$('eventsTable').querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th');
+  if (!th) return;
+  const col = th.dataset.col;
+  if (eventsSortCol === col) eventsSortDir *= -1;
+  else { eventsSortCol = col; eventsSortDir = 1; }
+  renderEventsTable();
+});
+
+$('eventsFilter').addEventListener('input', renderEventsTable);
+
+// ── Blocks Table ──
+let blocksSortCol = 'start';
+let blocksSortDir = 1;
+
+function renderBlocksTable() {
+  const tbody = $('blocksTable').querySelector('tbody');
+  const filter = ($('blocksFilter').value || '').toLowerCase();
+
+  let rows = [...mergedBlocks];
+
+  if (filter) {
+    rows = rows.filter(r =>
+      r.project.toLowerCase().includes(filter) ||
+      r.description.toLowerCase().includes(filter)
+    );
+  }
+
+  rows.sort((a, b) => {
+    let va, vb;
+    switch (blocksSortCol) {
+      case 'start': va = a.start; vb = b.start; break;
+      case 'end': va = a.end; vb = b.end; break;
+      case 'duration': va = a.durationMinutes; vb = b.durationMinutes; break;
+      case 'events': va = a.events.length; vb = b.events.length; break;
+      case 'project': va = a.project; vb = b.project; break;
+      case 'description': va = a.description; vb = b.description; break;
+      default: va = a.start; vb = b.start;
+    }
+    if (va < vb) return -blocksSortDir;
+    if (va > vb) return blocksSortDir;
+    return 0;
+  });
+
+  $('blocksCount').textContent = `${rows.length} blocks`;
+
+  tbody.innerHTML = rows.map(r => `
+    <tr style="border-left: 3px solid ${r.projectColor}">
+      <td><span class="project-dot" style="background:${r.projectColor}"></span>${escHtml(r.project)}</td>
+      <td>${formatTimestamp(new Date(r.start).toISOString())}</td>
+      <td>${formatTimestamp(new Date(r.end).toISOString())}</td>
+      <td>${formatDuration(r.durationMinutes)}</td>
+      <td>${r.events.length}</td>
+      <td style="white-space:normal;max-width:400px">${escHtml(r.description)}</td>
+    </tr>
+  `).join('');
+
+  updateSortArrows($('blocksTable'), blocksSortCol, blocksSortDir);
+}
+
+function formatDuration(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+$('blocksTable').querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th');
+  if (!th) return;
+  const col = th.dataset.col;
+  if (blocksSortCol === col) blocksSortDir *= -1;
+  else { blocksSortCol = col; blocksSortDir = 1; }
+  renderBlocksTable();
+});
+
+$('blocksFilter').addEventListener('input', renderBlocksTable);
+
+// ── Sort Arrows ──
+function updateSortArrows(table, col, dir) {
+  table.querySelectorAll('th').forEach(th => {
+    const arrow = th.querySelector('.sort-arrow');
+    if (th.dataset.col === col) {
+      arrow.textContent = dir === 1 ? '▲' : '▼';
+    } else {
+      arrow.textContent = '';
+    }
+  });
+}
+
+// ── Calendar View ──
+function initCalendar() {
+  if (!mergedBlocks.length) return;
+
+  $('calendarEmpty').style.display = 'none';
+  $('calendar-container').style.display = '';
+  $('calendar-container').innerHTML = '';
+
+  // Build resources (one per project)
+  const projects = [...new Set(mergedBlocks.map(b => b.project))];
+  const resources = projects.map(p => ({ id: p, title: p }));
+
+  // Assign a stable color to each repo
+  const REPO_PALETTE = ['#58a6ff','#3fb950','#bc8cff','#d29922','#f85149','#79c0ff','#56d364','#d2a8ff','#e3b341','#ff7b72','#a5d6ff','#7ee787','#d8b4fe','#f9e2af','#ffa198','#388bfd','#2ea043','#8957e5','#bf8700','#da3633'];
+  const allRepos = [...new Set(mergedBlocks.flatMap(b => b.events.map(e => e.repo)))].sort();
+  const repoColorMap = {};
+  allRepos.forEach((repo, i) => { repoColorMap[repo] = REPO_PALETTE[i % REPO_PALETTE.length]; });
+
+  // Helper: get the dominant repo in a block
+  function blockRepo(block) {
+    const counts = {};
+    block.events.forEach(e => { counts[e.repo] = (counts[e.repo] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  // Build events, colored by repo
+  const events = mergedBlocks.map((b, i) => {
+    const repo = blockRepo(b);
+    return {
+      id: String(i),
+      title: `${repo.split('/')[1] || repo} — ${b.events.length} event(s)`,
+      start: new Date(b.start),
+      end: new Date(b.end),
+      resourceId: b.project,
+      backgroundColor: repoColorMap[repo] || '#58a6ff',
+      extendedProps: { block: b }
+    };
+  });
+
+  // Find the date range to display
+  const firstDate = new Date(mergedBlocks[0].start);
+
+  try {
+    calendarInstance = EventCalendar.create($('calendar-container'), {
+      view: 'resourceTimelineWeek',
+      date: firstDate,
+      resources,
+      events,
+      height: 'auto',
+      headerToolbar: {
+        start: 'prev,next today',
+        center: 'title',
+        end: 'resourceTimelineWeek,timeGridWeek,dayGridMonth'
+      },
+      resourceTimelineWeek: {
+        slotDuration: '01:00',
+        slotLabelInterval: '02:00',
+        slotMinTime: '06:00',
+        slotMaxTime: '22:00'
+      },
+      timeGridWeek: {
+        slotMinTime: '06:00',
+        slotMaxTime: '22:00'
+      },
+      eventClick: (info) => {
+        const block = info.event.extendedProps.block;
+        if (block) showPopover(block);
+      }
+    });
+  } catch (e) {
+    console.error('Calendar init error:', e);
+    $('calendar-container').innerHTML = '<div class="empty-state"><p>Calendar library failed to load. Please check your internet connection.</p></div>';
+  }
+}
+
+// ── Popover ──
+function showPopover(block) {
+  $('popoverTitle').textContent = block.project;
+  $('popoverMeta').textContent = `${formatTimestamp(new Date(block.start).toISOString())} → ${formatTimestamp(new Date(block.end).toISOString())} (${formatDuration(block.durationMinutes)})`;
+  $('popoverEvents').innerHTML = block.events.map(e => `
+    <li>
+      <span class="type-badge type-${e.type.replace('_', '-')}">${formatType(e.type)}</span>
+      <a href="${e.url}" target="_blank">#${e.number} ${escHtml(e.title)}</a>
+      <br><small style="color:var(--text-muted)">${e.repo} · ${formatTimestamp(e.timestamp)}</small>
+    </li>
+  `).join('');
+  $('popoverOverlay').classList.add('visible');
+}
+
+$('popoverClose').addEventListener('click', () => $('popoverOverlay').classList.remove('visible'));
+$('popoverOverlay').addEventListener('click', e => {
+  if (e.target === $('popoverOverlay')) $('popoverOverlay').classList.remove('visible');
+});
+
+// ── Summary ──
+function renderSummary() {
+  if (!mergedBlocks.length) return;
+
+  const { map } = buildRepoToProject();
+
+  // Hours per project
+  const projectHours = {};
+  const projectColors = {};
+  mergedBlocks.forEach(b => {
+    projectHours[b.project] = (projectHours[b.project] || 0) + b.durationMinutes / 60;
+    projectColors[b.project] = b.projectColor;
+  });
+
+  // Hours per day
+  const dayHours = {};
+  mergedBlocks.forEach(b => {
+    const day = new Date(b.start).toLocaleDateString('en-CA'); // YYYY-MM-DD
+    dayHours[day] = (dayHours[day] || 0) + b.durationMinutes / 60;
+  });
+
+  const totalHours = Object.values(projectHours).reduce((a, b) => a + b, 0);
+  const workdays = Object.keys(dayHours).length;
+  const avgPerDay = workdays > 0 ? totalHours / workdays : 0;
+
+  const maxProjectH = Math.max(...Object.values(projectHours), 1);
+  const maxDayH = Math.max(...Object.values(dayHours), 1);
+
+  const sortedDays = Object.entries(dayHours).sort(([a], [b]) => a.localeCompare(b));
+
+  $('summaryContent').innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h3>Overview</h3>
+        <div class="stat-row"><span>Total Events</span><span class="stat-value">${allEvents.length}</span></div>
+        <div class="stat-row"><span>Total Time Blocks</span><span class="stat-value">${mergedBlocks.length}</span></div>
+        <div class="stat-row"><span>Total Hours</span><span class="stat-value">${totalHours.toFixed(1)}h</span></div>
+        <div class="stat-row"><span>Active Days</span><span class="stat-value">${workdays}</span></div>
+        <div class="stat-row"><span>Avg Hours/Workday</span><span class="stat-value">${avgPerDay.toFixed(1)}h</span></div>
+      </div>
+      <div class="summary-card">
+        <h3>Hours by Project</h3>
+        <div class="bar-chart">
+          ${Object.entries(projectHours)
+            .sort(([,a],[,b]) => b - a)
+            .map(([proj, h]) => `
+              <div class="bar-row">
+                <div class="bar-label" title="${escHtml(proj)}">${escHtml(proj)}</div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:${(h/maxProjectH*100).toFixed(1)}%;background:${projectColors[proj] || '#8b949e'}"></div>
+                </div>
+                <div class="bar-value">${h.toFixed(1)}h</div>
+              </div>
+            `).join('')}
+        </div>
+      </div>
+      <div class="summary-card" style="grid-column: span 2">
+        <h3>Hours by Day</h3>
+        <div class="bar-chart">
+          ${sortedDays.map(([day, h]) => `
+            <div class="bar-row">
+              <div class="bar-label">${day}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${(h/maxDayH*100).toFixed(1)}%;background:var(--accent)"></div>
+              </div>
+              <div class="bar-value">${h.toFixed(1)}h</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── CSV Export (Toggl Format) ──
+$('exportCsvBtn').addEventListener('click', () => {
+  if (!mergedBlocks.length) return;
+
+  const rows = [['Email', 'Description', 'Project', 'Task', 'Client', 'Tags', 'Start date', 'Start time', 'Duration', 'Billable']];
+
+  mergedBlocks.forEach(b => {
+    const startD = new Date(b.start);
+    const durH = Math.floor(b.durationMinutes / 60);
+    const durM = b.durationMinutes % 60;
+
+    rows.push([
+      '',  // Email
+      csvEscape(b.description),
+      csvEscape(b.project),
+      '',  // Task
+      '',  // Client
+      b.events.map(e => formatType(e.type)).join(','),  // Tags
+      startD.toLocaleDateString('en-CA'),  // YYYY-MM-DD
+      startD.toLocaleTimeString('en-GB'),  // HH:MM:SS
+      `${String(durH).padStart(2,'0')}:${String(durM).padStart(2,'0')}:00`,
+      'No'
+    ]);
+  });
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `github-timesheet-${$('cfgUser').value}-${$('cfgStart').value}-${$('cfgEnd').value}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+function csvEscape(s) {
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+// ── Event Handlers ──
+$('fetchBtn').addEventListener('click', fetchAllData);
+$('cancelBtn').addEventListener('click', () => {
+  if (abortController) abortController.abort();
+});
+
+// Auto-save config on change
+['cfgUser','cfgStart','cfgEnd','cfgDuration','cfgInclude','cfgExclude'].forEach(id => {
+  $(id).addEventListener('change', saveConfig);
+});
+
+// ── Load cached data on startup ──
+function loadCachedData() {
+  try {
+    const evts = sessionStorage.getItem('gh-tracker-events');
+    const blks = sessionStorage.getItem('gh-tracker-blocks');
+    if (evts && blks) {
+      allEvents = JSON.parse(evts);
+      mergedBlocks = JSON.parse(blks);
+      renderAll();
+    }
+  } catch(e) { /* ignore */ }
+}
+
+// ── Init ──
+loadConfig();
+// Restore token into the input if available
+if (getToken()) $('cfgToken').value = getToken();
+loadCachedData();
+</script>
+</body>
+</html>
